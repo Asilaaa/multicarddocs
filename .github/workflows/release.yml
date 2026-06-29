@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux]
+        goarch: [amd64, arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build release bundle
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          set -euo pipefail
+          APP=multicard-mcp-go
+          OUT_DIR="dist/${APP}-${GOOS}-${GOARCH}"
+          mkdir -p "$OUT_DIR/bin"
+          go build -ldflags='-s -w' -o "$OUT_DIR/bin/$APP" .
+          cp -a multicard-docs "$OUT_DIR/"
+          cp -a deploy "$OUT_DIR/"
+          cp -a scripts "$OUT_DIR/"
+          cp README.md "$OUT_DIR/"
+          tar -C "$OUT_DIR" -czf "dist/${APP}-${GOOS}-${GOARCH}.tar.gz" .
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.tar.gz

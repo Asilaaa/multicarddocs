@@ -1,0 +1,23 @@
+[Unit]
+Description=Multicard Docs MCP HTTP service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=multicard-mcp
+Group=multicard-mcp
+WorkingDirectory=/opt/multicard-mcp
+EnvironmentFile=-/etc/multicard-mcp/multicard-mcp.env
+ExecStart=/bin/sh -lc '/opt/multicard-mcp/bin/multicard-mcp-go --docs-dir "${MULTICARD_DOCS_DIR:-/opt/multicard-mcp/multicard-docs}" --http --listen-addr "${LISTEN_ADDR:-127.0.0.1:8080}"'
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadOnlyPaths=/opt/multicard-mcp/multicard-docs
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

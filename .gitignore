@@ -1,0 +1,6 @@
+bin/
+dist/
+multicard-mcp-go
+*.log
+.env
+.DS_Store
