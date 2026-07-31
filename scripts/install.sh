@@ -35,13 +35,23 @@ fi
 mkdir -p bin
 if [ ! -x "bin/$APP_NAME" ]; then
   echo "[install] local binary not found in bin/$APP_NAME, building it"
-  go build -o "bin/$APP_NAME" .
+  go build -o "bin/$APP_NAME" "./cmd/$APP_NAME"
 fi
 
 run mkdir -p "$INSTALL_DIR/bin" "$CONFIG_DIR"
-run install -m 0755 "bin/$APP_NAME" "$INSTALL_DIR/bin/$APP_NAME"
-run rm -rf "$INSTALL_DIR/multicard-docs"
-run cp -a multicard-docs "$INSTALL_DIR/"
+
+SRC_BIN="$(readlink -f "bin/$APP_NAME")"
+DST_BIN="$(readlink -f "$INSTALL_DIR/bin/$APP_NAME" 2>/dev/null || true)"
+if [ "$SRC_BIN" != "$DST_BIN" ]; then
+  run install -m 0755 "bin/$APP_NAME" "$INSTALL_DIR/bin/$APP_NAME"
+fi
+
+SRC_DOCS="$(readlink -f "multicard-docs")"
+DST_DOCS="$(readlink -f "$INSTALL_DIR/multicard-docs" 2>/dev/null || true)"
+if [ "$SRC_DOCS" != "$DST_DOCS" ]; then
+  run rm -rf "$INSTALL_DIR/multicard-docs"
+  run cp -a multicard-docs "$INSTALL_DIR/"
+fi
 run install -m 0644 deploy/systemd/${SERVICE_NAME}.service "$SYSTEMD_DIR/${SERVICE_NAME}.service"
 
 if [ ! -f "$CONFIG_DIR/${SERVICE_NAME}.env" ]; then

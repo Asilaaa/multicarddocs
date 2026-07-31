@@ -6,27 +6,27 @@ PACKAGE_DIR := $(DIST_DIR)/package
 .PHONY: fmt test build build-http clean package-linux-amd64 run-http run-stdio
 
 fmt:
-	gofmt -w *.go
+	gofmt -w $$(find . -path './multicard-docs' -prune -o -name '*.go' -print)
 
 test:
 	go test ./...
 
 build: fmt test
 	mkdir -p $(BIN_DIR)
-	go build -o $(BIN_DIR)/$(APP) .
+	go build -o $(BIN_DIR)/$(APP) ./cmd/$(APP)
 
 build-http: build
 
 run-http:
-	go run . --http --listen-addr 127.0.0.1:8080
+	go run ./cmd/$(APP) --http --listen-addr 127.0.0.1:8080
 
 run-stdio:
-	go run .
+	go run ./cmd/$(APP)
 
 package-linux-amd64: fmt test
 	rm -rf $(PACKAGE_DIR)
 	mkdir -p $(PACKAGE_DIR)/bin
-	GOOS=linux GOARCH=amd64 go build -ldflags='-s -w' -o $(PACKAGE_DIR)/bin/$(APP) .
+	GOOS=linux GOARCH=amd64 go build -ldflags='-s -w' -o $(PACKAGE_DIR)/bin/$(APP) ./cmd/$(APP)
 	cp -a multicard-docs $(PACKAGE_DIR)/
 	cp -a deploy $(PACKAGE_DIR)/
 	cp -a scripts $(PACKAGE_DIR)/

@@ -30,7 +30,7 @@ jobs:
           APP=multicard-mcp-go
           OUT_DIR="dist/${APP}-${GOOS}-${GOARCH}"
           mkdir -p "$OUT_DIR/bin"
-          go build -ldflags='-s -w' -o "$OUT_DIR/bin/$APP" .
+          go build -ldflags='-s -w' -o "$OUT_DIR/bin/$APP" ./cmd/$APP
           cp -a multicard-docs "$OUT_DIR/"
           cp -a deploy "$OUT_DIR/"
           cp -a scripts "$OUT_DIR/"

@@ -24,7 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p bin
-          GOOS=linux GOARCH=amd64 go build -ldflags='-s -w' -o "bin/${APP}" .
+          GOOS=linux GOARCH=amd64 go build -ldflags='-s -w' -o "bin/${APP}" ./cmd/${APP}
 
       - name: Prepare bundle
         run: |
@@ -37,8 +37,8 @@ jobs:
             scripts \
             README.md \
             go.mod \
-            main.go \
-            main_test.go
+            cmd \
+            internal
 
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.0

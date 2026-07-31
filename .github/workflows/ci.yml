@@ -19,7 +19,7 @@ jobs:
 
       - name: Check formatting
         run: |
-          test -z "$(gofmt -l *.go)"
+          test -z "$(gofmt -l $(find . -path './multicard-docs' -prune -o -name '*.go' -print))"
 
       - name: Run tests
         run: go test ./...

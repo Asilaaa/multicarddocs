@@ -58,23 +58,31 @@ Example input:
 
 ```text
 multicard-mcp-go/
-├── multicard-docs/
-├── deploy/
-│   ├── nginx/
-│   └── systemd/
-├── scripts/
-├── .github/workflows/
-├── main.go
-├── main_test.go
+├── cmd/
+│   └── multicard-mcp-go/
+│       └── main.go              # CLI entrypoint; parses mode and starts the app
+├── internal/
+│   ├── config/                  # flags, env vars, docs-directory resolution
+│   ├── docs/                    # markdown loading, metadata extraction, search index
+│   ├── mcp/                     # MCP JSON-RPC protocol, tools, resources, transports
+│   ├── render/                  # human-readable answers and structured payloads
+│   └── util/                    # small shared helpers
+├── multicard-docs/              # bundled source markdown docs served by the MCP server
+├── deploy/                      # systemd/nginx deployment examples
+├── scripts/                     # install/deployment scripts
+├── .github/workflows/           # CI, release, and deployment automation
+├── Makefile                     # local build/test/package commands
 ├── go.mod
 └── README.md
 ```
+
+For a detailed file-by-file explanation, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Build
 
 ```bash
 cd multicard-mcp-go
-go build -o bin/multicard-mcp-go .
+go build -o bin/multicard-mcp-go ./cmd/multicard-mcp-go
 ```
 
 Or:
@@ -206,6 +214,8 @@ It runs:
 - `gofmt` check
 - `go test ./...`
 - `go build ./...`
+
+The executable entrypoint is in `cmd/multicard-mcp-go`; reusable server logic lives under `internal/`.
 
 ### Release
 
