@@ -56,6 +56,7 @@ jobs:
       - name: Install on server
         run: |
           ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "set -euo pipefail && \
+            sudo chown -R \$(whoami):\$(whoami) '${DEPLOY_PATH}' 2>/dev/null || true && \
             mkdir -p '${DEPLOY_PATH}' && \
             tar -xzf '/tmp/${APP}-deploy.tar.gz' -C '${DEPLOY_PATH}' && \
             cd '${DEPLOY_PATH}' && \
