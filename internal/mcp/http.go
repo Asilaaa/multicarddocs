@@ -7,15 +7,21 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"multicard-mcp-go/internal/oauth"
 )
 
-// ServeHTTP serves MCP-compatible JSON-RPC over HTTP, plus health and readiness endpoints.
-func (s *Server) ServeHTTP(listenAddr string) error {
+// ServeHTTP serves MCP-compatible JSON-RPC over HTTP, plus health, readiness,
+// and OAuth endpoints. The /mcp endpoint requires a valid bearer token issued
+// by auth; every other OAuth route (discovery metadata, registration,
+// authorize, token) is public, as required for clients to bootstrap the flow.
+func (s *Server) ServeHTTP(listenAddr string, auth *oauth.Server) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", s.handleHealthz)
 	mux.HandleFunc("/readyz", s.handleReadyz)
-	mux.HandleFunc("/mcp", s.handleHTTPMCP)
+	mux.Handle("/mcp", auth.RequireToken(http.HandlerFunc(s.handleHTTPMCP)))
 	mux.HandleFunc("/", s.handleRoot)
+	auth.RegisterRoutes(mux)
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -40,13 +46,15 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"name":               "multicard-docs-mcp-go",
-		"version":            ServerVersion,
-		"transport":          "http-json-rpc",
-		"mcp_endpoint":       "/mcp",
-		"health_endpoint":    "/healthz",
-		"readiness_endpoint": "/readyz",
-		"docs_loaded":        s.corpus.TotalDocs(),
+		"name":                        "multicard-docs-mcp-go",
+		"version":                     ServerVersion,
+		"transport":                   "http-json-rpc",
+		"mcp_endpoint":                "/mcp",
+		"health_endpoint":             "/healthz",
+		"readiness_endpoint":          "/readyz",
+		"docs_loaded":                 s.corpus.TotalDocs(),
+		"authorization":               "OAuth 2.1 (authorization code + PKCE)",
+		"protected_resource_metadata": "/.well-known/oauth-protected-resource",
 	})
 }
 

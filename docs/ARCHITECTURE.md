@@ -9,7 +9,8 @@ This project is organized like a production Go service: the binary entrypoint is
 3. The binary creates `internal/mcp.Server` with the loaded docs corpus.
 4. Depending on flags, the server runs either:
    - stdio MCP transport for local MCP clients, or
-   - HTTP JSON-RPC transport with `/mcp`, `/healthz`, and `/readyz` endpoints.
+   - HTTP JSON-RPC transport with `/mcp`, `/healthz`, and `/readyz` endpoints, where `/mcp` is
+     protected by an `internal/oauth.Server` (OAuth 2.1 authorization code + PKCE).
 5. MCP tools call into the docs search/index layer and use `internal/render` to return text plus structured JSON payloads.
 
 ## File and package guide
@@ -45,7 +46,16 @@ Defines MCP server state, server version constants, and JSON-RPC request/respons
 Handles stdio MCP framing (`Content-Length`) and routes JSON-RPC methods like `initialize`, `tools/list`, `tools/call`, `resources/list`, and `resources/read`.
 
 ### `internal/mcp/http.go`
-Provides HTTP JSON-RPC transport and operational endpoints (`/healthz`, `/readyz`, `/mcp`). This is the deployment-friendly transport.
+Provides HTTP JSON-RPC transport and operational endpoints (`/healthz`, `/readyz`, `/mcp`). This is the deployment-friendly transport. `/mcp` is wrapped in `oauth.Server.RequireToken`, so every request needs a valid bearer access token.
+
+### `internal/oauth/`
+Self-contained OAuth 2.1 authorization server and resource-server guard, stdlib-only:
+
+- `types.go` / `store.go` — in-memory `Client`, `AuthCode`, `Token` models and thread-safe storage (no database; tokens don't need to survive a restart).
+- `pkce.go` — PKCE (`S256`) verification and constant-time comparisons.
+- `server.go` — HTTP handlers for dynamic client registration (`/register`, RFC 7591), the login/consent screen (`/authorize`), the token endpoint (`/token`, authorization_code + refresh_token grants), discovery metadata (`/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`), and the `RequireToken` middleware that guards `/mcp`.
+
+There is no real user database: `/authorize` shows one fixed demo login (configurable via `OAUTH_DEMO_USER`/`OAUTH_DEMO_PASSWORD`), so the human-approval step of the flow is still visible without needing an identity provider.
 
 ### `internal/mcp/tools.go`
 Defines MCP tool schemas and implementations:

@@ -111,7 +111,12 @@ Available endpoints:
 
 - `GET /healthz`
 - `GET /readyz`
-- `POST /mcp`
+- `POST /mcp` — OAuth 2.1 protected, requires `Authorization: Bearer <token>`
+- `GET /.well-known/oauth-protected-resource` — RFC 9728 resource metadata
+- `GET /.well-known/oauth-authorization-server` — RFC 8414 authorization server metadata
+- `POST /register` — RFC 7591 dynamic client registration
+- `GET/POST /authorize` — login + consent screen
+- `POST /token` — authorization code / refresh token exchange
 
 Example:
 
@@ -119,13 +124,51 @@ Example:
 curl -s http://127.0.0.1:8080/healthz
 ```
 
+Calling `/mcp` without a token is rejected with a `401` that points at the discovery metadata:
+
 ```bash
-curl -s http://127.0.0.1:8080/mcp \
-  -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+curl -si http://127.0.0.1:8080/mcp -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+# HTTP/1.1 401 Unauthorized
+# Www-Authenticate: Bearer resource_metadata="http://127.0.0.1:8080/.well-known/oauth-protected-resource"
 ```
 
-### 3. Quick CLI testing without an MCP client
+### 3. OAuth 2.1 flow (authorization code + PKCE)
+
+This server is both the OAuth authorization server and the protected resource — matching how a
+standalone remote MCP server is expected to behave per the MCP Authorization spec. There is no
+real user database: `/authorize` shows a fixed demo login (`demo` / `demo1234` by default,
+overridable via `OAUTH_DEMO_USER` / `OAUTH_DEMO_PASSWORD`) so the human-approval step in the flow
+is still visible end to end.
+
+1. **Register a client** (`internal/oauth/server.go` → `handleRegister`):
+
+   ```bash
+   curl -s -X POST http://127.0.0.1:8080/register \
+     -H 'Content-Type: application/json' \
+     -d '{"client_name":"Demo Client","redirect_uris":["http://127.0.0.1:9999/callback"]}'
+   ```
+
+2. **Send the user to `/authorize`** with a PKCE `code_challenge` (`S256`). The server renders a
+   login + consent page (`handleAuthorize` / `authorizeTemplate`); approving redirects back to
+   `redirect_uri` with `?code=...`.
+
+3. **Exchange the code for a token** (`handleToken` → `exchangeAuthCode`), presenting the original
+   PKCE `code_verifier`:
+
+   ```bash
+   curl -s -X POST http://127.0.0.1:8080/token \
+     -d grant_type=authorization_code -d code=<code> \
+     -d redirect_uri=http://127.0.0.1:9999/callback \
+     -d client_id=<client_id> -d code_verifier=<verifier>
+   ```
+
+4. **Call `/mcp`** with the returned `access_token` as a bearer token.
+
+Access tokens last 1 hour; refresh tokens (`grant_type=refresh_token`) last 30 days and rotate on
+each use. See `internal/oauth/` for the full implementation — it's deliberately small and
+dependency-free (stdlib only) so it reads well end to end.
+
+### 4. Quick CLI testing without an MCP client
 
 Search:
 
@@ -181,6 +224,11 @@ Default HTTP bind address in the env file:
 ```bash
 LISTEN_ADDR=127.0.0.1:8080
 ```
+
+Set `PUBLIC_BASE_URL` to the externally reachable URL (e.g. `https://multicardocs.sukoon.uz`) so
+OAuth discovery metadata and redirects are built with the right host instead of being inferred
+from the proxied request. `OAUTH_DEMO_USER` / `OAUTH_DEMO_PASSWORD` control the login shown on the
+`/authorize` consent screen — change them from the defaults before deploying somewhere public.
 
 Env file location:
 

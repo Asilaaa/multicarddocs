@@ -1,6 +1,6 @@
 bin/
 dist/
-multicard-mcp-go
+/multicard-mcp-go
 *.tar.gz
 *.log
 .env

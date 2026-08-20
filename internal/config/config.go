@@ -18,6 +18,15 @@ type Config struct {
 	HTTP       bool
 	ListenAddr string
 	Limit      int
+
+	// PublicBaseURL, when set, is used as the OAuth issuer/base URL in
+	// discovery metadata instead of inferring it from the request (needed
+	// behind a reverse proxy that terminates TLS at a public hostname).
+	PublicBaseURL string
+	// OAuthDemoUser/OAuthDemoPassword are the fixed login shown on the
+	// /authorize consent screen. This is a demo login, not a user database.
+	OAuthDemoUser     string
+	OAuthDemoPassword string
 }
 
 // Load parses command-line flags and returns application configuration.
@@ -33,6 +42,9 @@ func Load(args []string) (Config, error) {
 	fs.BoolVar(&cfg.HTTP, "http", false, "Run as an HTTP JSON-RPC service instead of stdio MCP")
 	fs.StringVar(&cfg.ListenAddr, "listen-addr", EnvOrDefault("LISTEN_ADDR", "127.0.0.1:8080"), "HTTP listen address for --http mode")
 	fs.IntVar(&cfg.Limit, "limit", 5, "Result limit for --search or --ask")
+	fs.StringVar(&cfg.PublicBaseURL, "public-base-url", EnvOrDefault("PUBLIC_BASE_URL", ""), "Public base URL used in OAuth discovery metadata (e.g. https://multicardocs.sukoon.uz)")
+	fs.StringVar(&cfg.OAuthDemoUser, "oauth-demo-user", EnvOrDefault("OAUTH_DEMO_USER", "demo"), "Username for the OAuth demo login screen")
+	fs.StringVar(&cfg.OAuthDemoPassword, "oauth-demo-password", EnvOrDefault("OAUTH_DEMO_PASSWORD", "demo1234"), "Password for the OAuth demo login screen")
 
 	if err := fs.Parse(args); err != nil {
 		return Config{}, err
