@@ -32,11 +32,16 @@ type Options struct {
 	DemoPassword string
 }
 
-// Server is a minimal OAuth 2.1 authorization server, combined with the
-// bearer-token guard that protects the MCP resource endpoint. It implements
-// just enough of RFC 6749, RFC 7636 (PKCE), RFC 7591 (dynamic client
-// registration), RFC 8414 (authorization server metadata), and RFC 9728
-// (protected resource metadata) for a real MCP client to complete the flow.
+// Server is a minimal OAuth 2.1 (draft-ietf-oauth-v2-1) authorization server,
+// combined with the bearer-token guard that protects the MCP resource
+// endpoint. OAuth 2.1 does not replace the extension RFCs below — it folds
+// them in as hard requirements instead of options — so this implementation
+// only ever exercises the 2.1-compliant subset of OAuth 2.0's grants:
+// authorization code + PKCE, no implicit or password grants, exact
+// redirect_uri matching, and refresh token rotation. It implements just
+// enough of RFC 7636 (PKCE), RFC 7591 (dynamic client registration),
+// RFC 8414 (authorization server metadata), and RFC 9728 (protected
+// resource metadata) for a real MCP client to complete the flow.
 type Server struct {
 	store *Store
 	opts  Options
