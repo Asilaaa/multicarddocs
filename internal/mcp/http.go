@@ -86,6 +86,8 @@ func (s *Server) handleHTTPMCP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		debugLogRequest(r, body)
+
 		if id, hdrErr := checkModernHeaders(r, body); hdrErr != nil {
 			writeJSON(w, http.StatusBadRequest, response{JSONRPC: "2.0", ID: id, Error: hdrErr})
 			return
@@ -180,6 +182,23 @@ func headerMismatch(header, got, want string) *rpcError {
 		Code:    errCodeHeaderMismatch,
 		Message: fmt.Sprintf("Header mismatch: %s header value %q does not match body value %q", header, got, want),
 	}
+}
+
+// debugLogRequest is a temporary diagnostic aid: it prints the headers and
+// body of every POST /mcp request to stderr (never the Authorization value
+// itself) so real client traffic can be inspected via the systemd journal
+// without needing access to the client's own browser devtools.
+// TODO: remove once claude.ai's "no tools" connector issue is diagnosed.
+func debugLogRequest(r *http.Request, body []byte) {
+	fmt.Fprintf(os.Stderr, "[debug] POST /mcp from UA=%q Origin=%q Accept=%q MCP-Protocol-Version=%q Mcp-Method=%q Mcp-Name=%q body=%s\n",
+		r.Header.Get("User-Agent"),
+		r.Header.Get("Origin"),
+		r.Header.Get("Accept"),
+		r.Header.Get("MCP-Protocol-Version"),
+		r.Header.Get("Mcp-Method"),
+		r.Header.Get("Mcp-Name"),
+		string(body),
+	)
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
