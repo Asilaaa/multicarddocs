@@ -40,13 +40,13 @@ Detects high-level API topics such as token, card, invoice, payment, refund, cal
 Implements the local BM25-style heuristic search, score boosts, topic penalties, and snippet extraction.
 
 ### `internal/mcp/types.go`
-Defines MCP server state, server version constants, and JSON-RPC request/response DTOs. Also defines `modernVersionFromParams`, the transport-agnostic helper that reads a request's `params._meta["io.modelcontextprotocol/protocolVersion"]` — the presence of that field is what tells a modern (2026-07-28+) request apart from a legacy (`initialize`-handshake) one.
+Defines MCP server state, server version constants, and JSON-RPC request/response DTOs.
 
 ### `internal/mcp/protocol.go`
-Handles stdio MCP framing (`Content-Length`) and routes JSON-RPC methods. This server is **dual-era**: it advertises `LegacyProtocolVersion` (`2025-11-25`, the newest handshake-based revision) from `initialize`, and separately accepts modern per-request-versioned calls declaring `ModernProtocolVersion` (`2026-07-28`) in their `_meta`. Every modern request is checked against the supported version up front — an unsupported one gets `UnsupportedProtocolVersionError` (`-32022`) before any method dispatch happens. `server/discover` (mandatory under 2026-07-28) is implemented here and works over both eras and both transports.
+Handles stdio MCP framing (`Content-Length`) and routes JSON-RPC methods like `initialize`, `tools/list`, `tools/call`, `resources/list`, and `resources/read`.
 
 ### `internal/mcp/http.go`
-Provides HTTP JSON-RPC transport and operational endpoints (`/healthz`, `/readyz`, `/mcp`). This is the deployment-friendly transport. `/mcp` is wrapped in `oauth.Server.RequireToken`, so every request needs a valid bearer access token. `checkModernHeaders` additionally enforces the 2026-07-28 Streamable HTTP header requirements (`MCP-Protocol-Version`, `Mcp-Method`, and — for `tools/call`/`resources/read` — `Mcp-Name`, each mirroring the JSON-RPC body) for modern requests only; legacy requests skip this check entirely, so existing handshake-based clients are unaffected.
+Provides HTTP JSON-RPC transport and operational endpoints (`/healthz`, `/readyz`, `/mcp`). This is the deployment-friendly transport. `/mcp` is wrapped in `oauth.Server.RequireToken`, so every request needs a valid bearer access token. `GET /mcp` returns `405` when the client's `Accept` header asks for `text/event-stream`, since this server doesn't implement the optional SSE notification channel — a plain human/curl visit without that header still gets a friendly info page.
 
 ### `internal/oauth/`
 Self-contained OAuth 2.1 authorization server and resource-server guard, stdlib-only:

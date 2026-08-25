@@ -97,44 +97,10 @@ func (s *Server) writeResponse(out io.Writer, resp response) {
 
 func (s *Server) handleRequest(req request) (response, bool) {
 	resp := response{JSONRPC: "2.0", ID: req.ID}
-
-	// Every modern (2026-07-28+) request declares its protocol version in
-	// params._meta, independent of method, and must be rejected up front if
-	// that version isn't one this server understands. Legacy requests never
-	// carry this field, so they fall straight through untouched.
-	if v := modernVersionFromParams(req.Params); v != "" && v != ModernProtocolVersion {
-		resp.Error = &rpcError{
-			Code:    errCodeUnsupportedProtocolVersion,
-			Message: "Unsupported protocol version",
-			Data: map[string]any{
-				"supported": []string{ModernProtocolVersion, LegacyProtocolVersion},
-				"requested": v,
-			},
-		}
-		return resp, true
-	}
-
 	switch req.Method {
-	case "server/discover":
-		resp.Result = map[string]any{
-			"resultType":        "complete",
-			"supportedVersions": []string{ModernProtocolVersion, LegacyProtocolVersion},
-			"capabilities": map[string]any{
-				"tools":     map[string]any{},
-				"resources": map[string]any{"subscribe": false, "listChanged": false},
-			},
-			"_meta": map[string]any{
-				"io.modelcontextprotocol/serverInfo": map[string]any{
-					"name":    "multicard-docs-mcp-go",
-					"version": ServerVersion,
-				},
-			},
-			"instructions": "Search and read the Multicard payments API docs via search_multicard_docs, get_multicard_doc, and answer_multicard_question.",
-		}
-		return resp, true
 	case "initialize":
 		resp.Result = map[string]any{
-			"protocolVersion": LegacyProtocolVersion,
+			"protocolVersion": ProtocolVersion,
 			"capabilities": map[string]any{
 				"tools":     map[string]any{},
 				"resources": map[string]any{"subscribe": false, "listChanged": false},

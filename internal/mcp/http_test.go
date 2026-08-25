@@ -32,7 +32,7 @@ func decodeResponse(t *testing.T, rec *httptest.ResponseRecorder) response {
 	return resp
 }
 
-func TestHandleHTTPMCPLegacyRequestUnaffectedByNewHeaderRules(t *testing.T) {
+func TestHandleHTTPMCPToolsList(t *testing.T) {
 	server := testServer(t)
 	rec := postMCP(t, server, map[string]any{
 		"jsonrpc": "2.0",
@@ -45,134 +45,6 @@ func TestHandleHTTPMCPLegacyRequestUnaffectedByNewHeaderRules(t *testing.T) {
 	resp := decodeResponse(t, rec)
 	if resp.Error != nil {
 		t.Fatalf("unexpected error: %+v", resp.Error)
-	}
-}
-
-func TestHandleHTTPMCPModernRequestWithCorrectHeaders(t *testing.T) {
-	server := testServer(t)
-	rec := postMCP(t, server, map[string]any{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "tools/list",
-		"params": map[string]any{
-			"_meta": map[string]any{"io.modelcontextprotocol/protocolVersion": ModernProtocolVersion},
-		},
-	}, map[string]string{
-		"MCP-Protocol-Version": ModernProtocolVersion,
-		"Mcp-Method":           "tools/list",
-	})
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusOK, rec.Body.String())
-	}
-	resp := decodeResponse(t, rec)
-	if resp.Error != nil {
-		t.Fatalf("unexpected error: %+v", resp.Error)
-	}
-}
-
-func TestHandleHTTPMCPModernRequestMissingProtocolVersionHeaderRejected(t *testing.T) {
-	server := testServer(t)
-	rec := postMCP(t, server, map[string]any{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "tools/list",
-		"params": map[string]any{
-			"_meta": map[string]any{"io.modelcontextprotocol/protocolVersion": ModernProtocolVersion},
-		},
-	}, map[string]string{
-		"Mcp-Method": "tools/list",
-	})
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
-	}
-	resp := decodeResponse(t, rec)
-	if resp.Error == nil || resp.Error.Code != errCodeHeaderMismatch {
-		t.Fatalf("expected HeaderMismatch error, got %+v", resp.Error)
-	}
-}
-
-func TestHandleHTTPMCPModernRequestWrongMcpMethodHeaderRejected(t *testing.T) {
-	server := testServer(t)
-	rec := postMCP(t, server, map[string]any{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "tools/list",
-		"params": map[string]any{
-			"_meta": map[string]any{"io.modelcontextprotocol/protocolVersion": ModernProtocolVersion},
-		},
-	}, map[string]string{
-		"MCP-Protocol-Version": ModernProtocolVersion,
-		"Mcp-Method":           "resources/list",
-	})
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
-	}
-	resp := decodeResponse(t, rec)
-	if resp.Error == nil || resp.Error.Code != errCodeHeaderMismatch {
-		t.Fatalf("expected HeaderMismatch error, got %+v", resp.Error)
-	}
-}
-
-func TestHandleHTTPMCPModernToolsCallRequiresMatchingMcpName(t *testing.T) {
-	server := testServer(t)
-	body := map[string]any{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "tools/call",
-		"params": map[string]any{
-			"name":      "search_multicard_docs",
-			"arguments": map[string]any{"query": "invoice"},
-			"_meta":     map[string]any{"io.modelcontextprotocol/protocolVersion": ModernProtocolVersion},
-		},
-	}
-
-	// Correct Mcp-Name: succeeds.
-	rec := postMCP(t, server, body, map[string]string{
-		"MCP-Protocol-Version": ModernProtocolVersion,
-		"Mcp-Method":           "tools/call",
-		"Mcp-Name":             "search_multicard_docs",
-	})
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusOK, rec.Body.String())
-	}
-
-	// Wrong Mcp-Name: rejected.
-	rec = postMCP(t, server, body, map[string]string{
-		"MCP-Protocol-Version": ModernProtocolVersion,
-		"Mcp-Method":           "tools/call",
-		"Mcp-Name":             "get_multicard_doc",
-	})
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
-	}
-	resp := decodeResponse(t, rec)
-	if resp.Error == nil || resp.Error.Code != errCodeHeaderMismatch {
-		t.Fatalf("expected HeaderMismatch error, got %+v", resp.Error)
-	}
-}
-
-func TestHandleHTTPMCPModernResourcesReadRequiresMatchingMcpName(t *testing.T) {
-	server := testServer(t)
-	body := map[string]any{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "resources/read",
-		"params": map[string]any{
-			"uri":   "doc://endpoints/example.md",
-			"_meta": map[string]any{"io.modelcontextprotocol/protocolVersion": ModernProtocolVersion},
-		},
-	}
-	rec := postMCP(t, server, body, map[string]string{
-		"MCP-Protocol-Version": ModernProtocolVersion,
-		"Mcp-Method":           "resources/read",
-		"Mcp-Name":             "doc://something-else.md",
-	})
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
-	}
-	resp := decodeResponse(t, rec)
-	if resp.Error == nil || resp.Error.Code != errCodeHeaderMismatch {
-		t.Fatalf("expected HeaderMismatch error, got %+v", resp.Error)
 	}
 }
 
@@ -206,27 +78,5 @@ func TestHandleHTTPMCPPlainGetStillReturnsInfoPage(t *testing.T) {
 	}
 	if _, ok := out["message"]; !ok {
 		t.Fatalf("expected the info message field, got %+v", out)
-	}
-}
-
-func TestHandleHTTPMCPUnsupportedProtocolVersionReturns400(t *testing.T) {
-	server := testServer(t)
-	rec := postMCP(t, server, map[string]any{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "tools/list",
-		"params": map[string]any{
-			"_meta": map[string]any{"io.modelcontextprotocol/protocolVersion": "1900-01-01"},
-		},
-	}, map[string]string{
-		"MCP-Protocol-Version": "1900-01-01",
-		"Mcp-Method":           "tools/list",
-	})
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
-	}
-	resp := decodeResponse(t, rec)
-	if resp.Error == nil || resp.Error.Code != errCodeUnsupportedProtocolVersion {
-		t.Fatalf("expected UnsupportedProtocolVersionError, got %+v", resp.Error)
 	}
 }
