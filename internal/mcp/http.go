@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"multicard-mcp-go/internal/oauth"
@@ -101,6 +102,18 @@ func (s *Server) handleHTTPMCP(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, status, resp)
 	case http.MethodGet:
+		// A Streamable HTTP client asking for text/event-stream is trying to
+		// open the optional standalone GET/SSE channel for server-initiated
+		// notifications (legacy revisions 2025-03-26 through 2025-11-25).
+		// This server doesn't implement that channel, so it must say so with
+		// 405 rather than silently answering with an unrelated JSON body —
+		// a client waiting on an event stream that never arrives can stall
+		// its own "ready" state instead of falling back gracefully.
+		if strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, "GET/SSE streaming is not supported by this server", http.StatusMethodNotAllowed)
+			return
+		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"message": "POST JSON-RPC requests to this endpoint",
 			"example": map[string]any{
