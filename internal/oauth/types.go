@@ -44,3 +44,21 @@ type Token struct {
 	AccessExpiresAt  time.Time
 	RefreshExpiresAt time.Time
 }
+
+// PendingAuthorization is an MCP client's /authorize request, stashed
+// server-side while the user completes sign-in with Google. GoogleEmail and
+// GoogleSubject are populated only after the Google callback verifies them —
+// they are never taken from client-supplied form data, since a consent-page
+// form field could be tampered with by anyone who can reach the browser.
+type PendingAuthorization struct {
+	ID                  string
+	ClientID            string
+	RedirectURI         string
+	State               string
+	Scope               string
+	CodeChallenge       string
+	CodeChallengeMethod string
+	GoogleEmail         string
+	GoogleSubject       string
+	ExpiresAt           time.Time
+}

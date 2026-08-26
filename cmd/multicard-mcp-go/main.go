@@ -59,12 +59,18 @@ func run(args []string) error {
 	server := mcp.NewServer(corp)
 	if cfg.HTTP {
 		auth := oauth.NewServer(oauth.Options{
-			PublicBaseURL: cfg.PublicBaseURL,
-			DemoUsername:  cfg.OAuthDemoUser,
-			DemoPassword:  cfg.OAuthDemoPassword,
+			PublicBaseURL:      cfg.PublicBaseURL,
+			DemoUsername:       cfg.OAuthDemoUser,
+			DemoPassword:       cfg.OAuthDemoPassword,
+			GoogleClientID:     cfg.GoogleClientID,
+			GoogleClientSecret: cfg.GoogleClientSecret,
 		})
 		fmt.Fprintf(os.Stderr, "multicard-mcp-go: loaded %d docs from %s\n", corp.TotalDocs(), cfg.DocsDir)
-		fmt.Fprintf(os.Stderr, "multicard-mcp-go: serving HTTP JSON-RPC on %s (OAuth 2.1 protected)\n", cfg.ListenAddr)
+		signInMode := "demo login"
+		if cfg.GoogleClientID != "" && cfg.GoogleClientSecret != "" {
+			signInMode = "Google sign-in"
+		}
+		fmt.Fprintf(os.Stderr, "multicard-mcp-go: serving HTTP JSON-RPC on %s (OAuth 2.1 protected, %s)\n", cfg.ListenAddr, signInMode)
 		if err := server.ServeHTTP(cfg.ListenAddr, auth); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return fmt.Errorf("http server error: %w", err)
 		}

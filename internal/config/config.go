@@ -24,9 +24,15 @@ type Config struct {
 	// behind a reverse proxy that terminates TLS at a public hostname).
 	PublicBaseURL string
 	// OAuthDemoUser/OAuthDemoPassword are the fixed login shown on the
-	// /authorize consent screen. This is a demo login, not a user database.
+	// /authorize consent screen when Google sign-in isn't configured. This
+	// is a demo login, not a user database.
 	OAuthDemoUser     string
 	OAuthDemoPassword string
+
+	// GoogleClientID/GoogleClientSecret enable real Google sign-in in place
+	// of the demo login. Both must be set together.
+	GoogleClientID     string
+	GoogleClientSecret string
 }
 
 // Load parses command-line flags and returns application configuration.
@@ -45,6 +51,8 @@ func Load(args []string) (Config, error) {
 	fs.StringVar(&cfg.PublicBaseURL, "public-base-url", EnvOrDefault("PUBLIC_BASE_URL", ""), "Public base URL used in OAuth discovery metadata (e.g. https://multicardocs.sukoon.uz)")
 	fs.StringVar(&cfg.OAuthDemoUser, "oauth-demo-user", EnvOrDefault("OAUTH_DEMO_USER", "demo"), "Username for the OAuth demo login screen")
 	fs.StringVar(&cfg.OAuthDemoPassword, "oauth-demo-password", EnvOrDefault("OAUTH_DEMO_PASSWORD", "demo1234"), "Password for the OAuth demo login screen")
+	fs.StringVar(&cfg.GoogleClientID, "google-client-id", EnvOrDefault("GOOGLE_CLIENT_ID", ""), "Google OAuth client ID; enables real Google sign-in in place of the demo login")
+	fs.StringVar(&cfg.GoogleClientSecret, "google-client-secret", EnvOrDefault("GOOGLE_CLIENT_SECRET", ""), "Google OAuth client secret")
 
 	if err := fs.Parse(args); err != nil {
 		return Config{}, err

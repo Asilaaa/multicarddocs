@@ -25,11 +25,19 @@ type Options struct {
 	PublicBaseURL string
 
 	// DemoUsername/DemoPassword are the fixed credentials shown on the
-	// login screen. This server has no real user accounts: the login step
-	// exists to demonstrate the "user authenticates and approves access"
-	// half of the OAuth flow, not to gate real data.
+	// login screen when Google sign-in isn't configured. This server has no
+	// real user accounts in that mode: the login step exists to demonstrate
+	// the "user authenticates and approves access" half of the OAuth flow,
+	// not to gate real data.
 	DemoUsername string
 	DemoPassword string
+
+	// GoogleClientID/GoogleClientSecret enable federating authentication to
+	// Google (real OpenID Connect) instead of the demo login. Both must be
+	// set together; when empty, /authorize falls back to the demo login so
+	// local development doesn't require real Google credentials.
+	GoogleClientID     string
+	GoogleClientSecret string
 }
 
 // Server is a minimal OAuth 2.1 (draft-ietf-oauth-v2-1) authorization server,
@@ -65,6 +73,15 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/register", s.handleRegister)
 	mux.HandleFunc("/authorize", s.handleAuthorize)
 	mux.HandleFunc("/token", s.handleToken)
+	mux.HandleFunc("/auth/google/callback", s.handleGoogleCallback)
+	mux.HandleFunc("/authorize/google/confirm", s.handleGoogleConfirm)
+}
+
+// googleEnabled reports whether Google sign-in is configured. Both the
+// client ID and secret must be set; a partially-configured pair is treated
+// as disabled rather than guessed at.
+func (s *Server) googleEnabled() bool {
+	return s.opts.GoogleClientID != "" && s.opts.GoogleClientSecret != ""
 }
 
 // RequireToken protects the MCP endpoint. A request without a valid bearer
@@ -255,6 +272,12 @@ func (s *Server) renderAuthorize(w http.ResponseWriter, r *http.Request, errMsg 
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	if s.googleEnabled() {
+		s.startGoogleSignIn(w, r, view)
+		return
+	}
+
 	view.Error = errMsg
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_ = authorizeTemplate.Execute(w, view)

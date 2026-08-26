@@ -14,6 +14,7 @@ type Store struct {
 	authCodes map[string]*AuthCode
 	byAccess  map[string]*Token
 	byRefresh map[string]*Token
+	pending   map[string]*PendingAuthorization
 }
 
 // NewStore creates an empty in-memory store.
@@ -23,6 +24,7 @@ func NewStore() *Store {
 		authCodes: make(map[string]*AuthCode),
 		byAccess:  make(map[string]*Token),
 		byRefresh: make(map[string]*Token),
+		pending:   make(map[string]*PendingAuthorization),
 	}
 }
 
@@ -95,4 +97,38 @@ func (s *Store) RevokeToken(t *Token) {
 	defer s.mu.Unlock()
 	delete(s.byAccess, t.AccessToken)
 	delete(s.byRefresh, t.RefreshToken)
+}
+
+func (s *Store) SavePendingAuthorization(p *PendingAuthorization) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pending[p.ID] = p
+}
+
+// GetPendingAuthorization looks up a pending authorization without consuming
+// it, used right after the Google callback to attach the verified identity.
+func (s *Store) GetPendingAuthorization(id string) (*PendingAuthorization, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, ok := s.pending[id]
+	if !ok || time.Now().After(p.ExpiresAt) {
+		return nil, false
+	}
+	return p, true
+}
+
+// ConsumePendingAuthorization returns and deletes a pending authorization so
+// the final approve/deny decision can only be acted on once.
+func (s *Store) ConsumePendingAuthorization(id string) (*PendingAuthorization, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, ok := s.pending[id]
+	if !ok {
+		return nil, false
+	}
+	delete(s.pending, id)
+	if time.Now().After(p.ExpiresAt) {
+		return nil, false
+	}
+	return p, true
 }
